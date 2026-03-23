@@ -339,82 +339,8 @@
   </div>
 </div><!-- /mainApp -->
 
+<script type="module"
+src="script.js"></script>
 
-<!-- ══ FIREBASE MODULE ══ -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyB9wLp_Z2PzCQgtdTjwoQZGw2tSC8tgNNY",
-  authDomain: "focus-app-3c749.firebaseapp.com",
-  projectId: "focus-app-3c749",
-  storageBucket: "focus-app-3c749.appspot.com",
-  messagingSenderId: "583246239661",
-  appId: "1:583246239661:web:7117c22d10842171ff7324"
-};
-
-const app = initializeApp(firebaseConfig);
-console.log('✅ Firebase init OK');
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
-window.db = db;
-window.auth = auth;
-window.firebaseFns = { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, onSnapshot };
-
-window.signInWithGoogle = async () => {
-  try {
-    console.log('🔄 Starting redirect sign-in...');
-    await signInWithRedirect(auth, provider);
-  } catch (e) {
-    console.error('❌ Sign-in error:', e);
-    alert('Sign-in failed: ' + e.message);
-  }
-};
-
-window.doSignOut = async () => {
-  try {
-    await fbSignOut(auth);
-    document.getElementById('mainApp').style.display = 'none';
-    document.getElementById('landingPage').style.display = 'block';
-    window.currentUser = null;
-  } catch (e) {
-    console.error('Sign-out error:', e);
-  }
-};
-
-getRedirectResult(auth).then((result) => {
-  if (result) {
-    console.log('✅ Redirect success! User:', result.user.uid);
-    window.currentUser = result.user;
-  }
-}).catch((e) => {
-  console.error('❌ Redirect result error:', e);
-});
-
-onAuthStateChanged(auth, (user) => {
-  console.log('🔄 Auth state:', user ? user.uid : 'null');
-  if (user) {
-    window.currentUser = user;
-    document.getElementById('landingPage').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    const avatar = document.getElementById('userAvatar');
-    if (user.photoURL) avatar.src = user.photoURL;
-    document.getElementById('userName').innerText = (user.displayName || '').split(' ')[0] || 'You';
-    if (window.initApp) window.initApp();
-  } else {
-    document.getElementById('landingPage').style.display = 'block';
-    document.getElementById('mainApp').style.display = 'none';
-    window.currentUser = null;
-  }
-});
-</script>
-
-
-
-<script src="script.js"></script>
 </body>
 </html>

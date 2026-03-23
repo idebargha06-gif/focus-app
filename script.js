@@ -1,5 +1,169 @@
-// ══ CONSTANTS ════════════════════════════════════════════
-const CIRCUMFERENCE = 2 * Math.PI * 88; // 552.9
+// ══════════════════════════════════════════════════════════
+//  FIREBASE IMPORTS  (single clean import block — no duplicates)
+// ══════════════════════════════════════════════════════════
+import { initializeApp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithRedirect,
+  getRedirectResult,
+  onAuthStateChanged,
+  signOut as fbSignOut
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  collection, addDoc, getDocs,
+  query, orderBy, limit,
+  doc, getDoc, setDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+
+// ══════════════════════════════════════════════════════════
+//  FIREBASE INIT
+//  authDomain MUST be the Firebase default domain —
+//  NOT the Vercel domain — for redirect auth to work.
+// ══════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyB9wLp_Z2PzCQgtdTjwoQZGw2tSC8tgNNY",
+  authDomain:        "focus-app-3c749.firebaseapp.com",   // ← keep this exactly as is
+  projectId:         "focus-app-3c749",
+  storageBucket:     "focus-app-3c749.appspot.com",
+  messagingSenderId: "583246239661",
+  appId:             "1:583246239661:web:7117c22d10842171ff7324"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth        = getAuth(firebaseApp);
+const db          = getFirestore(firebaseApp);
+const provider    = new GoogleAuthProvider();
+
+// ── Expose to window so every function in this module can use them
+window.db   = db;
+window.auth = auth;
+
+// ── FIX #1: assign firebaseFns immediately after db is ready
+//    Every function that checks `if (!window.firebaseFns) return`
+//    was silently bailing because this was never set.
+window.firebaseFns = {
+  collection, addDoc, getDocs,
+  query, orderBy, limit,
+  doc, getDoc, setDoc,
+  onSnapshot
+};
+
+
+// ══════════════════════════════════════════════════════════
+//  AUTH — REDIRECT FLOW (correct order of execution)
+//
+//  Correct lifecycle:
+//    1. Page loads after Google redirect
+//    2. getRedirectResult() resolves the pending credential
+//    3. Firebase internally calls setPersistence → stores the user
+//    4. onAuthStateChanged fires with the user
+//    5. UI switches to app
+//
+//  IMPORTANT: getRedirectResult() must be called BEFORE
+//  onAuthStateChanged is registered, so Firebase has time to
+//  store the user before the auth state callback fires.
+// ══════════════════════════════════════════════════════════
+
+// Step 1: handle the redirect result first
+getRedirectResult(auth)
+  .then(result => {
+    if (result && result.user) {
+      // User just came back from Google — Firebase will now
+      // persist the session and trigger onAuthStateChanged automatically.
+      console.log("✅ Redirect result resolved:", result.user.displayName);
+    }
+  })
+  .catch(error => {
+    console.error("❌ getRedirectResult error:", error.code, error.message);
+  });
+
+// Step 2: listen for auth state — this fires after getRedirectResult persists the user
+onAuthStateChanged(auth, user => {
+  if (user) {
+    console.log("✅ Auth state: signed in as", user.displayName);
+
+    window.currentUser = user;
+
+    // Update UI
+    document.getElementById("landingPage").style.display = "none";
+    document.getElementById("mainApp").style.display     = "block";
+
+    const avatar = document.getElementById("userAvatar");
+    if (avatar && user.photoURL) avatar.src = user.photoURL;
+    const nameEl = document.getElementById("userName");
+    if (nameEl) nameEl.innerText = user.displayName
+      ? user.displayName.split(" ")[0]
+      : "You";
+
+    // Boot the app
+    initApp();
+
+  } else {
+    console.log("ℹ️ Auth state: not signed in");
+    window.currentUser = null;
+    document.getElementById("landingPage").style.display = "block";
+    document.getElementById("mainApp").style.display     = "none";
+  }
+});
+
+// Step 3: sign-in trigger — exposed globally so HTML onclick works too
+window.signInWithGoogle = async function () {
+  try {
+    await signInWithRedirect(auth, provider);
+    // Page will redirect to Google — execution stops here
+  } catch (e) {
+    console.error("signInWithRedirect error:", e);
+    alert("Sign-in failed: " + e.message);
+  }
+};
+
+// FIX #4: doSignOut was missing — HTML calls onclick="doSignOut()"
+window.doSignOut = async function () {
+  try {
+    if (roomUnsubscribe)   { roomUnsubscribe();   roomUnsubscribe   = null; }
+    if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
+    await fbSignOut(auth);
+    window.currentUser = null;
+    document.getElementById("mainApp").style.display     = "none";
+    document.getElementById("landingPage").style.display = "block";
+  } catch (e) {
+    console.error("Sign-out error:", e);
+  }
+};
+
+// FIX #5: wire sign-in buttons here instead of DOMContentLoaded
+//  Module scripts are deferred — DOMContentLoaded may have already
+//  fired before the listener is registered, silently dropping it.
+//  Running this synchronously at module-evaluation time is safe
+//  because the HTML is already parsed when a module script runs.
+["btnSignIn","btnHeroCTA","btnLbCTA","btnFinalCTA"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("click", () => window.signInWithGoogle());
+});
+
+document.getElementById("roomInput")?.addEventListener("input", () => {
+  if (mode === "room" && getRoom()) displayLeaderboard();
+});
+
+// Request notification permission on first user interaction
+document.addEventListener("click", () => {
+  if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}, { once: true });
+
+
+// ══════════════════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════════════════
+const CIRCUMFERENCE = 2 * Math.PI * 88;
 
 const QUOTES = [
   '"Deep work is the ability to focus without distraction." — Cal Newport',
@@ -38,7 +202,10 @@ const SOUND_URLS = {
 
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-// ══ STATE ════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
 let timeLeft = 0, totalTime = 0, distractedCount = 0;
 let running = false, intervalId = null;
 let mode = "solo";
@@ -47,14 +214,18 @@ let pomodoroMode = false, pomoPhase = "work", pomoCycle = 0;
 let activeAudio = null, activeSound = null;
 let distractionLog = [];
 let blurTime = null;
+let lastActivity = Date.now();
 let stats = {
   totalSessions: 0, totalMinutes: 0, streak: 0,
   lastSessionDate: null, badges: [],
   weekData: [0,0,0,0,0,0,0], lastDistractions: 0
 };
 
-// ══ INIT (called after auth) ══════════════════════════════
-window.initApp = async () => {
+
+// ══════════════════════════════════════════════════════════
+//  APP INIT  (called after user is confirmed signed-in)
+// ══════════════════════════════════════════════════════════
+async function initApp() {
   showQuote();
   loadTheme();
   checkRoomFromURL();
@@ -64,48 +235,34 @@ window.initApp = async () => {
   displayGlobalLeaderboard();
   startIdleTracking();
   updateLandingStats();
-};
+}
 
-// ══ WIRE SIGN-IN BUTTONS ══════════════════════════════════
-document.addEventListener("DOMContentLoaded", () => {
-  ["btnSignIn","btnHeroCTA","btnLbCTA","btnFinalCTA"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("click", () => window.signInWithGoogle());
-  });
+// expose so inline HTML onclick can call it (belt-and-suspenders)
+window.initApp = initApp;
 
-  document.getElementById("roomInput").addEventListener("input", () => {
-    if (mode === "room" && getRoom()) displayLeaderboard();
-  });
 
-  document.addEventListener("click", () => {
-    if (Notification && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-  }, { once: true });
-});
-
-// ══ LANDING LIVE STATS ════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  LANDING LIVE STATS
+// ══════════════════════════════════════════════════════════
 async function updateLandingStats() {
-  if (!window.firebaseFns) return;
-  const { collection, getDocs, query, orderBy, limit, onSnapshot } = window.firebaseFns;
-
+  // window.firebaseFns is now always set — these calls will work
   try {
-    const usersSnap = await getDocs(collection(window.db, "users"));
+    const usersSnap = await getDocs(collection(db, "users"));
     let totalMins = 0, totalSess = 0;
     usersSnap.forEach(d => {
       totalMins += d.data().totalMinutes  || 0;
       totalSess += d.data().totalSessions || 0;
     });
     const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+"k" : String(n);
-    const s = document.getElementById("statSessions"); if(s) s.innerText = fmt(totalSess);
-    const u = document.getElementById("statUsers");    if(u) u.innerText = fmt(usersSnap.size);
-    const m = document.getElementById("statMinutes");  if(m) m.innerText = fmt(totalMins);
-    const l = document.getElementById("liveMinutes");  if(l) l.innerText = fmt(totalMins);
-  } catch(e) { console.warn("stats fetch:", e); }
+    const elS = document.getElementById("statSessions"); if(elS) elS.innerText = fmt(totalSess);
+    const elU = document.getElementById("statUsers");    if(elU) elU.innerText = fmt(usersSnap.size);
+    const elM = document.getElementById("statMinutes");  if(elM) elM.innerText = fmt(totalMins);
+    const elL = document.getElementById("liveMinutes");  if(elL) elL.innerText = fmt(totalMins);
+  } catch(e) { console.warn("updateLandingStats:", e); }
 
-  // Live global leaderboard on landing
+  // Live leaderboard preview on landing page
   try {
-    const q = query(collection(window.db,"users"), orderBy("total","desc"), limit(5));
+    const q = query(collection(db,"users"), orderBy("total","desc"), limit(5));
     onSnapshot(q, snap => {
       const list = document.getElementById("landingLeaderboard");
       if (!list) return;
@@ -119,16 +276,22 @@ async function updateLandingStats() {
       });
       if (i === 0) list.innerHTML = "<li style='color:var(--muted);justify-content:center'>Be the first on the board!</li>";
     });
-  } catch(e) {}
+  } catch(e) { console.warn("landing leaderboard:", e); }
 }
 
-// ══ QUOTE ════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  QUOTE
+// ══════════════════════════════════════════════════════════
 function showQuote() {
   const el = document.getElementById("quoteBar");
   if (el) el.innerText = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 }
 
-// ══ THEME ════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  THEME
+// ══════════════════════════════════════════════════════════
 function loadTheme() {
   if (localStorage.getItem("ff_theme") === "light") {
     document.body.classList.add("light");
@@ -136,6 +299,7 @@ function loadTheme() {
     if (b) b.textContent = "☀️";
   }
 }
+
 function toggleTheme() {
   document.body.classList.toggle("light");
   const isLight = document.body.classList.contains("light");
@@ -143,8 +307,12 @@ function toggleTheme() {
   const b = document.querySelector(".theme-toggle");
   if (b) b.textContent = isLight ? "☀️" : "🌙";
 }
+window.toggleTheme = toggleTheme;
 
-// ══ MODE ═════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  MODE
+// ══════════════════════════════════════════════════════════
 function setMode(selected, btn) {
   if (running) { alert("Stop session first"); return; }
   mode = selected;
@@ -165,8 +333,12 @@ function setMode(selected, btn) {
   btn.classList.add("active");
   resetUI();
 }
+window.setMode = setMode;
 
-// ══ SECTION TOGGLE ════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  SECTION TOGGLE
+// ══════════════════════════════════════════════════════════
 function toggleSection(id, btn) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -174,16 +346,24 @@ function toggleSection(id, btn) {
   el.style.display = hidden ? "block" : "none";
   btn.textContent  = hidden ? "Hide" : "Show";
 }
+window.toggleSection = toggleSection;
 
-// ══ TAB SWITCH ════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  TAB SWITCH
+// ══════════════════════════════════════════════════════════
 function switchBoard(type, btn) {
   document.querySelectorAll(".leaderboard-tabs button").forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
   document.getElementById("roomBoard").style.display   = type === "room"   ? "block" : "none";
   document.getElementById("globalBoard").style.display = type === "global" ? "block" : "none";
 }
+window.switchBoard = switchBoard;
 
-// ══ TIMER ════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════════════════════════
 function setTime(seconds, btn) {
   if (running) return;
   timeLeft = seconds; totalTime = seconds;
@@ -196,11 +376,13 @@ function setTime(seconds, btn) {
   document.getElementById("pomodoroBtn").classList.remove("active");
   document.getElementById("pomoStatus").innerText = "";
 }
+window.setTime = setTime;
 
 function openCustomTime() {
   const row = document.getElementById("customTimeRow");
   row.style.display = row.style.display === "none" ? "flex" : "none";
 }
+window.openCustomTime = openCustomTime;
 
 function applyCustomTime() {
   const mins = parseInt(document.getElementById("customMinutes").value);
@@ -211,20 +393,24 @@ function applyCustomTime() {
   document.getElementById("btnCustom").classList.add("active");
   document.getElementById("customTimeRow").style.display = "none";
 }
+window.applyCustomTime = applyCustomTime;
 
 function updateTimerDisplay() {
   const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
   document.getElementById("timer").innerText =
     String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
   const pct = totalTime > 0 ? Math.round((timeLeft / totalTime) * 100) : 0;
-  document.getElementById("timerPct").innerText  = running ? pct + "%" : "—";
+  document.getElementById("timerPct").innerText = running ? pct + "%" : "—";
   updateRing();
   document.title = running
     ? `🎯 ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")} — FocusFlow`
     : "FocusFlow — Deep Work Sessions";
 }
 
-// ══ POMODORO ══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  POMODORO
+// ══════════════════════════════════════════════════════════
 function togglePomodoro() {
   if (running) return;
   pomodoroMode = !pomodoroMode;
@@ -239,6 +425,7 @@ function togglePomodoro() {
     document.getElementById("pomoStatus").innerText = "";
   }
 }
+window.togglePomodoro = togglePomodoro;
 
 function nextPomoPhase() {
   if (pomoPhase === "work") {
@@ -266,7 +453,10 @@ function nextPomoPhase() {
   }, 1000);
 }
 
-// ══ SESSION ═══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  SESSION
+// ══════════════════════════════════════════════════════════
 function startSession() {
   if (running || !window.currentUser) return;
   if (timeLeft === 0) { setStatus("⚠️ Select a time first!"); return; }
@@ -289,6 +479,7 @@ function startSession() {
     }
   }, 1000);
 }
+window.startSession = startSession;
 
 function stopSession() {
   if (!running) return;
@@ -308,7 +499,6 @@ function stopSession() {
   document.getElementById("statDistractions").innerText = distractedCount;
   document.getElementById("statScore").innerText        = score;
 
-  // Distraction log
   const logEl = document.getElementById("distractionLog");
   logEl.innerHTML = "";
   distractionLog.forEach(d => {
@@ -318,7 +508,7 @@ function stopSession() {
   });
 
   timeLeft = 0;
-  document.getElementById("timer").innerText  = "00:00";
+  document.getElementById("timer").innerText    = "00:00";
   document.getElementById("timerPct").innerText = "—";
   resetRing(); resetTimeButtons();
   playBell();
@@ -326,7 +516,6 @@ function stopSession() {
   if (distractedCount === 0 && timeSpent >= 60) launchConfetti();
   document.getElementById("shareBtn").style.display = "block";
 
-  // Browser notification
   try {
     if (Notification.permission === "granted") {
       new Notification("FocusFlow — Session Complete! 🎉", {
@@ -337,6 +526,7 @@ function stopSession() {
 
   if (window.currentUser) saveSession(score, timeSpent);
 }
+window.stopSession = stopSession;
 
 function resetUI() {
   clearSummary();
@@ -350,16 +540,22 @@ function resetUI() {
   document.getElementById("shareBtn").style.display   = "none";
   document.title = "FocusFlow — Deep Work Sessions";
 }
+window.resetUI = resetUI;
 
 function clearSummary() {
   document.getElementById("statTime").innerText         = "--";
   document.getElementById("statDistractions").innerText = "--";
   document.getElementById("statScore").innerText        = "--";
 }
-function resetTimeButtons() { document.querySelectorAll(".time-select button").forEach(b => b.classList.remove("active")); }
-function setStatus(msg)     { document.getElementById("status").innerText = msg; }
+function resetTimeButtons() {
+  document.querySelectorAll(".time-select button").forEach(b => b.classList.remove("active"));
+}
+function setStatus(msg) { document.getElementById("status").innerText = msg; }
 
-// ══ DISTRACTION DETECTION ════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  DISTRACTION DETECTION
+// ══════════════════════════════════════════════════════════
 window.onblur = () => {
   if (!running) return;
   blurTime = Date.now();
@@ -377,7 +573,8 @@ window.onfocus = () => {
   document.getElementById("timer").classList.remove("distracted");
   setStatus(`Focused 🎯 · ${distractedCount} slip${distractedCount !== 1 ? "s" : ""}`);
   if (away > 5) {
-    document.getElementById("modalMsg").innerText = `You were away for ${away} seconds. Get back to it!`;
+    document.getElementById("modalMsg").innerText =
+      `You were away for ${away} seconds. Get back to it!`;
     document.getElementById("distractionModal").style.display = "flex";
   }
 };
@@ -385,9 +582,8 @@ window.onfocus = () => {
 function closeDistractionModal() {
   document.getElementById("distractionModal").style.display = "none";
 }
+window.closeDistractionModal = closeDistractionModal;
 
-// IDLE TRACKING
-let lastActivity = Date.now();
 function startIdleTracking() {
   const reset = () => { lastActivity = Date.now(); };
   document.addEventListener("mousemove", reset);
@@ -402,7 +598,10 @@ function startIdleTracking() {
   }, 30000);
 }
 
-// ══ AMBIENT SOUNDS ════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  AMBIENT SOUNDS
+// ══════════════════════════════════════════════════════════
 function toggleSound(btn) {
   const sound = btn.dataset.sound;
   if (activeSound === sound) {
@@ -413,17 +612,19 @@ function toggleSound(btn) {
   }
   if (activeAudio) { activeAudio.pause(); }
   document.querySelectorAll(".sound-btn").forEach(b => b.classList.remove("active"));
-  const audio = new Audio(SOUND_URLS[sound]);
+  const audio  = new Audio(SOUND_URLS[sound]);
   audio.loop   = true;
   audio.volume = document.getElementById("volumeSlider").value / 100;
   audio.play().catch(() => {});
   activeAudio = audio; activeSound = sound;
   btn.classList.add("active");
 }
+window.toggleSound = toggleSound;
 
 function setVolume(val) {
   if (activeAudio) activeAudio.volume = val / 100;
 }
+window.setVolume = setVolume;
 
 function playBell() {
   try {
@@ -439,7 +640,10 @@ function playBell() {
   } catch(e) {}
 }
 
-// ══ RING ══════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  RING
+// ══════════════════════════════════════════════════════════
 function updateRing() {
   const ring = document.getElementById("ringProgress");
   if (!ring) return;
@@ -452,65 +656,78 @@ function resetRing() {
   if (ring) ring.style.strokeDashoffset = CIRCUMFERENCE;
 }
 
-// ══ INVITE LINK ═══════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  INVITE LINK
+// ══════════════════════════════════════════════════════════
 function copyInviteLink() {
   const room = getRoom();
   if (!room) return;
   const url = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}`;
-  navigator.clipboard.writeText(url).then(() => {
-    const toast = document.getElementById("inviteToast");
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 2500);
-  }).catch(() => {
-    prompt("Copy this link:", url);
-  });
+  navigator.clipboard.writeText(url)
+    .then(() => {
+      const toast = document.getElementById("inviteToast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    })
+    .catch(() => prompt("Copy this link:", url));
 }
+window.copyInviteLink = copyInviteLink;
 
 function checkRoomFromURL() {
   const params = new URLSearchParams(location.search);
   const room   = params.get("room");
   if (room) {
     setTimeout(() => {
-      document.getElementById("roomInput").value = room;
+      const input = document.getElementById("roomInput");
+      if (input) input.value = room;
       const roomBtn = document.querySelector(".mode-select button:last-child");
       if (roomBtn) setMode("room", roomBtn);
     }, 600);
   }
 }
 
-// ══ FIREBASE — SAVE SESSION ═══════════════════════════════
-async function saveSession(score, timeSpent) {
-  if (!window.firebaseFns || !window.currentUser) return;
-  const { collection, addDoc, doc, getDoc, setDoc } = window.firebaseFns;
-  const uid      = window.currentUser.uid;
-  const username = window.currentUser.displayName || window.currentUser.email || "Anonymous";
-  const room     = getRoom();
-  const goal     = document.getElementById("focusGoal").value.trim() || "—";
 
-  // Room score
+// ══════════════════════════════════════════════════════════
+//  FIREBASE — SAVE SESSION
+// ══════════════════════════════════════════════════════════
+async function saveSession(score, timeSpent) {
+  if (!window.currentUser) return;
+
+  const uid      = window.currentUser.uid;
+  const username = window.currentUser.displayName
+    || window.currentUser.email
+    || "Anonymous";
+  const room = getRoom();
+  const goal = document.getElementById("focusGoal")?.value.trim() || "—";
+
+  // Save to room leaderboard
   if (mode === "room" && room) {
-    await addDoc(collection(window.db, "rooms", room, "scores"), {
+    await addDoc(collection(db, "rooms", room, "scores"), {
       value: score, name: username, uid, timestamp: Date.now()
     }).catch(e => console.warn("room save:", e));
   }
 
-  // Session history
-  await addDoc(collection(window.db, "users", uid, "sessions"), {
+  // Save session to history
+  await addDoc(collection(db, "users", uid, "sessions"), {
     score, timeSpent, distractions: distractedCount,
     goal, timestamp: Date.now(),
     date: new Date().toLocaleDateString()
   }).catch(e => console.warn("session save:", e));
 
-  // Update user doc
-  const userRef  = doc(window.db, "users", uid);
+  // Update user totals
+  const userRef  = doc(db, "users", uid);
   const userSnap = await getDoc(userRef).catch(() => null);
   const prev     = userSnap && userSnap.exists() ? userSnap.data() : {};
-  const today    = new Date().toDateString();
+
+  const today     = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
-  const lastDate = prev.lastSessionDate || "";
-  const newStreak = lastDate === today     ? (prev.streak || 0) :
-                    lastDate === yesterday  ? (prev.streak || 0) + 1 : 1;
-  const weekData  = [...(prev.weekData || [0,0,0,0,0,0,0])];
+  const lastDate  = prev.lastSessionDate || "";
+  const newStreak = lastDate === today      ? (prev.streak || 0)
+                  : lastDate === yesterday  ? (prev.streak || 0) + 1
+                  : 1;
+
+  const weekData = [...(prev.weekData || [0,0,0,0,0,0,0])];
   weekData[new Date().getDay()] += Math.floor(timeSpent / 60);
 
   const newTotalSessions = (prev.totalSessions || 0) + 1;
@@ -518,10 +735,10 @@ async function saveSession(score, timeSpent) {
   const newTotal         = (prev.total         || 0) + score;
 
   await setDoc(userRef, {
-    total: newTotal,
-    totalSessions: newTotalSessions,
-    totalMinutes:  newTotalMinutes,
-    streak:        newStreak,
+    total:           newTotal,
+    totalSessions:   newTotalSessions,
+    totalMinutes:    newTotalMinutes,
+    streak:          newStreak,
     lastSessionDate: today,
     weekData,
     lastDistractions: distractedCount,
@@ -529,12 +746,17 @@ async function saveSession(score, timeSpent) {
   }).catch(e => console.warn("user save:", e));
 
   stats = {
-    totalSessions: newTotalSessions,
-    totalMinutes:  newTotalMinutes,
-    streak:        newStreak,
+    totalSessions:   newTotalSessions,
+    totalMinutes:    newTotalMinutes,
+    streak:          newStreak,
     weekData,
     lastDistractions: distractedCount,
-    badges: checkBadges({ totalSessions: newTotalSessions, totalMinutes: newTotalMinutes, streak: newStreak, lastDistractions: distractedCount })
+    badges: checkBadges({
+      totalSessions: newTotalSessions,
+      totalMinutes:  newTotalMinutes,
+      streak:        newStreak,
+      lastDistractions: distractedCount
+    })
   };
 
   renderStats();
@@ -543,19 +765,21 @@ async function saveSession(score, timeSpent) {
   if (mode === "room") displayLeaderboard();
 }
 
-// ══ LOAD STATS ════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  LOAD STATS
+// ══════════════════════════════════════════════════════════
 async function loadStats() {
-  if (!window.firebaseFns || !window.currentUser) return;
-  const { doc, getDoc } = window.firebaseFns;
+  if (!window.currentUser) return;
   try {
-    const snap = await getDoc(doc(window.db, "users", window.currentUser.uid));
+    const snap = await getDoc(doc(db, "users", window.currentUser.uid));
     if (snap.exists()) {
       const d = snap.data();
       stats = {
-        totalSessions: d.totalSessions || 0,
-        totalMinutes:  d.totalMinutes  || 0,
-        streak:        d.streak        || 0,
-        weekData:      d.weekData      || [0,0,0,0,0,0,0],
+        totalSessions:   d.totalSessions   || 0,
+        totalMinutes:    d.totalMinutes    || 0,
+        streak:          d.streak          || 0,
+        weekData:        d.weekData        || [0,0,0,0,0,0,0],
         lastDistractions: d.lastDistractions || 0,
         badges: checkBadges(d)
       };
@@ -567,7 +791,10 @@ function checkBadges(d) {
   return BADGES_DEF.filter(b => b.check(d)).map(b => b.id);
 }
 
-// ══ RENDER STATS ══════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  RENDER STATS
+// ══════════════════════════════════════════════════════════
 function renderStats() {
   document.getElementById("dashStreak").innerText = stats.streak + "🔥";
   document.getElementById("dashTotal").innerText  = stats.totalSessions;
@@ -579,7 +806,7 @@ function renderStats() {
   row.innerHTML = "";
   BADGES_DEF.forEach(b => {
     const el = document.createElement("div");
-    el.className  = "badge" + (stats.badges.includes(b.id) ? " earned" : "");
+    el.className   = "badge" + (stats.badges.includes(b.id) ? " earned" : "");
     el.textContent = b.label;
     row.appendChild(el);
   });
@@ -591,20 +818,26 @@ function renderStats() {
   const today  = new Date().getDay();
   wd.forEach((val, i) => {
     const wrap = document.createElement("div"); wrap.className = "bar-day";
-    const bar  = document.createElement("div"); bar.className  = "bar" + (i === today ? " today" : "");
+    const bar  = document.createElement("div");
+    bar.className  = "bar" + (i === today ? " today" : "");
     bar.style.height = Math.max(3, (val / maxVal) * 52) + "px";
-    const lbl  = document.createElement("div"); lbl.className  = "bar-lbl"; lbl.textContent = DAYS[i];
+    const lbl  = document.createElement("div"); lbl.className = "bar-lbl"; lbl.textContent = DAYS[i];
     wrap.appendChild(bar); wrap.appendChild(lbl);
     chart.appendChild(wrap);
   });
 }
 
-// ══ RENDER HISTORY ════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  RENDER HISTORY
+// ══════════════════════════════════════════════════════════
 async function renderHistory() {
-  if (!window.firebaseFns || !window.currentUser) return;
-  const { collection, query, orderBy, limit, getDocs } = window.firebaseFns;
+  if (!window.currentUser) return;
   try {
-    const q    = query(collection(window.db, "users", window.currentUser.uid, "sessions"), orderBy("timestamp","desc"), limit(10));
+    const q    = query(
+      collection(db, "users", window.currentUser.uid, "sessions"),
+      orderBy("timestamp","desc"), limit(10)
+    );
     const snap = await getDocs(q);
     const list = document.getElementById("historyList");
     list.innerHTML = "";
@@ -622,17 +855,22 @@ async function renderHistory() {
   } catch(e) { console.warn("renderHistory:", e); }
 }
 
-// ══ LEADERBOARDS ══════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  LEADERBOARDS
+// ══════════════════════════════════════════════════════════
 async function displayLeaderboard() {
-  if (!window.firebaseFns) return;
   const room = getRoom();
   if (!room) {
-    document.getElementById("leaderboard").innerHTML = "<li style='color:var(--muted)'>Enter a room name</li>";
+    document.getElementById("leaderboard").innerHTML =
+      "<li style='color:var(--muted)'>Enter a room name</li>";
     return;
   }
-  const { collection, query, orderBy, limit, onSnapshot } = window.firebaseFns;
   if (roomUnsubscribe) { roomUnsubscribe(); roomUnsubscribe = null; }
-  const q = query(collection(window.db, "rooms", room, "scores"), orderBy("value","desc"), limit(5));
+  const q = query(
+    collection(db, "rooms", room, "scores"),
+    orderBy("value","desc"), limit(5)
+  );
   roomUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("leaderboard");
     list.innerHTML = "";
@@ -650,10 +888,8 @@ async function displayLeaderboard() {
 }
 
 async function displayGlobalLeaderboard() {
-  if (!window.firebaseFns) return;
-  const { collection, query, orderBy, limit, onSnapshot } = window.firebaseFns;
   if (globalUnsubscribe) { globalUnsubscribe(); globalUnsubscribe = null; }
-  const q = query(collection(window.db, "users"), orderBy("total","desc"), limit(10));
+  const q = query(collection(db, "users"), orderBy("total","desc"), limit(10));
   globalUnsubscribe = onSnapshot(q, snap => {
     const list = document.getElementById("globalLeaderboard");
     list.innerHTML = "";
@@ -669,34 +905,44 @@ async function displayGlobalLeaderboard() {
   });
 }
 
-// ══ SHARE ════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  SHARE
+// ══════════════════════════════════════════════════════════
 function shareScore() {
   const time  = document.getElementById("statTime").innerText;
   const dist  = document.getElementById("statDistractions").innerText;
   const score = document.getElementById("statScore").innerText;
-  const goal  = document.getElementById("focusGoal").value.trim() || "Deep work";
+  const goal  = document.getElementById("focusGoal")?.value.trim() || "Deep work";
   const text  = `⚡ FocusFlow Session\n🎯 ${goal}\n⏱️ ${time} · 🚫 ${dist} distractions · 🏆 ${score} pts\n\nfocus-app-six-hazel.vercel.app`;
   if (navigator.share) {
     navigator.share({ title: "FocusFlow Score", text }).catch(() => {});
   } else {
-    navigator.clipboard.writeText(text).then(() => alert("Score copied! Paste anywhere 🎉")).catch(() => {});
+    navigator.clipboard.writeText(text)
+      .then(() => alert("Score copied! Paste anywhere 🎉"))
+      .catch(() => {});
   }
 }
+window.shareScore = shareScore;
 
-// ══ CONFETTI ══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  CONFETTI
+// ══════════════════════════════════════════════════════════
 function launchConfetti() {
   const canvas = document.getElementById("confettiCanvas");
   canvas.style.display = "block";
-  const ctx = canvas.getContext("2d");
+  const ctx  = canvas.getContext("2d");
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
   const pieces  = Array.from({ length: 100 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height - canvas.height,
     w: Math.random() * 9 + 4, h: Math.random() * 5 + 3,
-    color: ["#22d47a","#38bdf8","#f87171","#fbbf24","#818cf8"][Math.floor(Math.random()*5)],
-    speed: Math.random() * 3.5 + 1.5, angle: Math.random() * Math.PI * 2,
-    spin: (Math.random() - 0.5) * 0.18
+    color: ["#22d47a","#38bdf8","#f87171","#fbbf24","#818cf8"][Math.floor(Math.random() * 5)],
+    speed: Math.random() * 3.5 + 1.5,
+    angle: Math.random() * Math.PI * 2,
+    spin:  (Math.random() - 0.5) * 0.18
   }));
   let frames = 0;
   const draw = () => {
@@ -709,17 +955,28 @@ function launchConfetti() {
     });
     frames++;
     if (frames < 200) requestAnimationFrame(draw);
-    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display="none"; }
+    else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = "none";
+    }
   };
   draw();
 }
 
-// ══ KEYBOARD SHORTCUTS ════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════════
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   if (e.code === "Space") { e.preventDefault(); running ? stopSession() : startSession(); }
   if (e.code === "KeyR" && !running) resetUI();
 });
 
-// ══ HELPERS ══════════════════════════════════════════════
-function getRoom() { return document.getElementById("roomInput")?.value.trim() || ""; }
+
+// ══════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════
+function getRoom() {
+  return document.getElementById("roomInput")?.value.trim() || "";
+}
