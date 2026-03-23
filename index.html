@@ -355,13 +355,8 @@ const firebaseConfig = {
   appId: "1:583246239661:web:7117c22d10842171ff7324"
 };
 
-try {
-  const app = initializeApp(firebaseConfig);  // Logs error if invalid
-  console.log('✅ Firebase init OK');
-} catch (e) {
-  console.error('❌ Firebase init FAILED:', e);
-}
-
+const app = initializeApp(firebaseConfig);
+console.log('✅ Firebase init OK');
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
@@ -370,7 +365,7 @@ window.db = db;
 window.auth = auth;
 window.firebaseFns = { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, onSnapshot };
 
-// Sign in
+// ✅ FIXED: Define functions immediately
 window.signInWithGoogle = async () => {
   try {
     console.log('🔄 Starting redirect sign-in...');
@@ -381,13 +376,22 @@ window.signInWithGoogle = async () => {
   }
 };
 
-// Handle redirect result ON PAGE LOAD
+window.doSignOut = async () => {
+  try {
+    await fbSignOut(auth);
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('landingPage').style.display = 'block';
+    window.currentUser = null;
+  } catch (e) {
+    console.error('Sign-out error:', e);
+  }
+};
+
+// Handle redirect result
 getRedirectResult(auth).then((result) => {
   if (result) {
     console.log('✅ Redirect success! User:', result.user.uid);
     window.currentUser = result.user;
-  } else {
-    console.log('ℹ️ No redirect result (normal if not from Google)');
   }
 }).catch((e) => {
   console.error('❌ Redirect result error:', e);
@@ -395,29 +399,21 @@ getRedirectResult(auth).then((result) => {
 
 // Auth state listener
 onAuthStateChanged(auth, (user) => {
-  console.log('🔄 Auth state changed:', user ? user.uid : 'null');
+  console.log('🔄 Auth state:', user ? user.uid : 'null');
   if (user) {
     window.currentUser = user;
     document.getElementById('landingPage').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
-    document.getElementById('userAvatar').src = user.photoURL || '';
+    const avatar = document.getElementById('userAvatar');
+    if (user.photoURL) avatar.src = user.photoURL;
     document.getElementById('userName').innerText = (user.displayName || '').split(' ')[0] || 'You';
-    window.initApp();  // Load app
+    if (window.initApp) window.initApp();
   } else {
-    console.log('🚪 No user - show landing');
     document.getElementById('landingPage').style.display = 'block';
     document.getElementById('mainApp').style.display = 'none';
     window.currentUser = null;
   }
 });
-
-window.doSignOut = async () => {
-  try {
-    await fbSignOut(auth);
-  } catch (e) {
-    console.error('Sign-out error:', e);
-  }
-};
 </script>
 
 
