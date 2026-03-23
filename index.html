@@ -347,7 +347,7 @@ import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onA
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB9wLpZ2PzCQgtdTjwoQZGw2tSC8tgNNY",
+  apiKey: "AIzaSyB9wLp_Z2PzCQgtdTjwoQZGw2tSC8tgNNY",
   authDomain: "focus-app-3c749.firebaseapp.com",
   projectId: "focus-app-3c749",
   storageBucket: "focus-app-3c749.appspot.com",
@@ -365,7 +365,6 @@ window.db = db;
 window.auth = auth;
 window.firebaseFns = { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, onSnapshot };
 
-// ✅ FIXED: Define functions immediately
 window.signInWithGoogle = async () => {
   try {
     console.log('🔄 Starting redirect sign-in...');
@@ -387,7 +386,6 @@ window.doSignOut = async () => {
   }
 };
 
-// Handle redirect result
 getRedirectResult(auth).then((result) => {
   if (result) {
     console.log('✅ Redirect success! User:', result.user.uid);
@@ -397,7 +395,6 @@ getRedirectResult(auth).then((result) => {
   console.error('❌ Redirect result error:', e);
 });
 
-// Auth state listener
 onAuthStateChanged(auth, (user) => {
   console.log('🔄 Auth state:', user ? user.uid : 'null');
   if (user) {
@@ -415,6 +412,7 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 </script>
+
 
 
 <script src="script.js"></script>
