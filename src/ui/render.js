@@ -45,7 +45,7 @@ function renderLanding(state, refs) {
   refs.landingLoggedOut.hidden = isSignedIn;
   refs.landingLoggedIn.hidden = !isSignedIn;
   refs.landingSignInButton.hidden = isSignedIn;
-  refs.landingUserButton.hidden = !isSignedIn;
+  refs.landingAccountToolbar.hidden = !isSignedIn;
   if (refs.navAppButton) {
     refs.navAppButton.hidden = true;
   }
@@ -65,11 +65,19 @@ function renderLanding(state, refs) {
     : `<li class="board-list__empty">No public scores yet.</li>`;
 
   if (!isSignedIn) {
+    refs.profilePanel.hidden = true;
     return;
   }
 
   setAvatar(refs.landingUserAvatar, state.auth.user);
+  setAvatar(refs.profilePanelAvatar, state.auth.user);
   refs.landingUserName.textContent = state.auth.user.displayName?.split(" ")[0] || "Workspace";
+  refs.landingUserStreak.textContent = `${state.stats.streak} day streak`;
+  refs.landingStreakValue.textContent = String(state.stats.streak);
+  refs.landingStreakBadge.dataset.active = state.stats.streak > 0 ? "true" : "false";
+  refs.profilePanelName.textContent = state.auth.user.displayName || "FocusFlow";
+  refs.profilePanelEmail.textContent = state.auth.user.email || "";
+  refs.profilePanel.hidden = !state.ui.profileOpen;
   const level = getLevelInfo(state.stats.totalMinutes);
   const goalPercent = Math.min(100, Math.round((state.stats.todayMinutes / DAILY_GOAL_MINUTES) * 100));
 
@@ -310,7 +318,9 @@ function renderFeedbackState(state, refs) {
 function renderTheme(state, refs) {
   document.body.dataset.theme = state.ui.theme;
   refs.themeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
+  refs.landingThemeButtonLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
   refs.themeToggleButton.dataset.theme = state.ui.theme;
+  refs.landingThemeToggleButton.dataset.theme = state.ui.theme;
   refs.profileThemeLabel.textContent = state.ui.theme === "dark" ? "Dark" : "Light";
   refs.notificationLabel.textContent = state.ui.notificationsEnabled ? "On" : "Off";
 }

@@ -36,7 +36,7 @@ export function createAuthController({
       }
     }));
 
-    openAppRoute();
+    openLandingRoute();
     await stats.refreshWorkspace(user.uid);
     leaderboards.startGlobal();
     await leaderboards.refreshPublicStats();

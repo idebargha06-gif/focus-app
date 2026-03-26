@@ -30,11 +30,31 @@ export function createAppTemplate() {
             </nav>
 
             <div class="topbar__actions">
+              <div id="landingAccountToolbar" class="account-toolbar" hidden>
+                <div id="landingStreakBadge" class="streak-chip">
+                  <span class="streak-chip__flame" aria-hidden="true"></span>
+                  <div class="streak-chip__content">
+                    <span class="streak-chip__label">Streak</span>
+                    <strong id="landingStreakValue">0</strong>
+                  </div>
+                </div>
+                <button id="landingThemeToggleButton" class="theme-toggle" data-action="toggle-theme" type="button" aria-label="Toggle theme">
+                  <span class="theme-toggle__visual" aria-hidden="true">
+                    <span class="theme-toggle__icon theme-toggle__icon--sun">Sun</span>
+                    <span class="theme-toggle__thumb"></span>
+                    <span class="theme-toggle__icon theme-toggle__icon--moon">Moon</span>
+                  </span>
+                  <span id="landingThemeButtonLabel" class="theme-toggle__label">Dark</span>
+                </button>
+                <button id="landingProfileButton" class="profile-button profile-button--rich" data-action="toggle-profile" type="button">
+                  <span id="landingUserAvatar" class="avatar avatar--small"></span>
+                  <span class="profile-button__meta">
+                    <span id="landingUserName">Workspace</span>
+                    <small id="landingUserStreak">0 day streak</small>
+                  </span>
+                </button>
+              </div>
               <button id="landingSignInButton" class="button button--primary" data-action="sign-in" type="button">Sign in with Google</button>
-              <button id="landingUserButton" class="user-chip" data-action="go-app" type="button" hidden>
-                <span id="landingUserAvatar" class="avatar avatar--small"></span>
-                <span id="landingUserName" class="sr-only">Workspace</span>
-              </button>
             </div>
           </header>
 
@@ -201,17 +221,22 @@ export function createAppTemplate() {
             <div class="workspace-bar__actions">
               <div id="workspaceStreakBadge" class="streak-chip">
                 <span class="streak-chip__flame" aria-hidden="true"></span>
-                <strong id="workspaceStreakValue">0</strong>
+                <div class="streak-chip__content">
+                  <span class="streak-chip__label">Streak</span>
+                  <strong id="workspaceStreakValue">0</strong>
+                </div>
               </div>
               <button id="themeToggleButton" class="theme-toggle" data-action="toggle-theme" type="button" aria-label="Toggle theme">
-                <span class="theme-toggle__track">
+                <span class="theme-toggle__visual" aria-hidden="true">
+                  <span class="theme-toggle__icon theme-toggle__icon--sun">Sun</span>
                   <span id="themeToggleThumb" class="theme-toggle__thumb"></span>
+                  <span class="theme-toggle__icon theme-toggle__icon--moon">Moon</span>
                 </span>
-                <span id="themeButtonLabel">Dark</span>
+                <span id="themeButtonLabel" class="theme-toggle__label">Dark</span>
               </button>
-              <button id="profileButton" class="profile-button" data-action="toggle-profile" type="button">
+              <button id="profileButton" class="profile-button profile-button--rich" data-action="toggle-profile" type="button">
                 <span id="profileAvatar" class="avatar avatar--small"></span>
-                <span class="profile-button__meta sr-only">
+                <span class="profile-button__meta">
                   <span id="profileButtonName">Workspace</span>
                   <small id="profileButtonStreak">0 day streak</small>
                 </span>
@@ -231,7 +256,7 @@ export function createAppTemplate() {
                     <h2>Design the session, then disappear into it.</h2>
                   </div>
                   <div class="goal-chip">
-                    <span>Today</span>
+                    <span class="goal-chip__label">Today</span>
                     <strong id="dailyGoalLabel">0 / 60 min</strong>
                   </div>
                 </div>
@@ -448,7 +473,7 @@ export function createAppTemplate() {
                   </div>
 
                   <div class="calendar-block">
-                    <button class="text-button text-button--wide" data-action="toggle-section" data-section="calendar" type="button">
+                    <button class="text-button text-button--inline" data-action="toggle-section" data-section="calendar" type="button">
                       <span>Activity calendar</span>
                       <span id="calendarMetaLabel">Best 0 days</span>
                     </button>

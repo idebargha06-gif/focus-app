@@ -214,7 +214,9 @@ export function bootstrapApp() {
     });
 
     document.addEventListener("click", (event) => {
-      if (!refs.profilePanel.hidden && !refs.profilePanel.contains(event.target) && !refs.profileButton.contains(event.target)) {
+      const clickedWorkspaceProfile = refs.profileButton?.contains(event.target);
+      const clickedLandingProfile = refs.landingProfileButton?.contains(event.target);
+      if (!refs.profilePanel.hidden && !refs.profilePanel.contains(event.target) && !clickedWorkspaceProfile && !clickedLandingProfile) {
         profile.closeProfile();
       }
     });

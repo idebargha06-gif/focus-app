@@ -5,6 +5,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
   let presenceUnsubscribe = null;
   let roomUnsubscribe = null;
   let heartbeatId = null;
+  let unloadBound = false;
   const handlers = {
     onRemoteSessionStart: null,
     onRemoteSessionStop: null
@@ -130,6 +131,19 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         }).catch(() => {});
       }
     }, ROOM_HEARTBEAT_MS);
+
+    if (!unloadBound) {
+      const handleLeave = () => {
+        const liveState = store.getState();
+        if (liveState.auth.user && liveState.room.currentRoomId) {
+          repository.removeRoomPresence(liveState.room.currentRoomId, liveState.auth.user.uid).catch(() => {});
+        }
+      };
+
+      window.addEventListener("pagehide", handleLeave);
+      window.addEventListener("beforeunload", handleLeave);
+      unloadBound = true;
+    }
   }
 
   async function stopPresence() {

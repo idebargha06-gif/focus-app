@@ -174,10 +174,11 @@ export function subscribeRoomPresence(roomId, callback) {
           uid: data.uid || entry.id,
           name: data.name || "Anonymous",
           avatar: data.avatar || "",
-          lastSeenAt: data.lastSeenAt || 0
+          lastSeenAt: data.lastSeenAt || 0,
+          leftAt: data.leftAt || 0
         };
       })
-      .filter((entry) => now - entry.lastSeenAt <= ROOM_PRESENCE_TTL_MS)
+      .filter((entry) => !entry.leftAt && now - entry.lastSeenAt <= ROOM_PRESENCE_TTL_MS)
       .sort((left, right) => left.name.localeCompare(right.name));
 
     callback(entries);
@@ -268,7 +269,8 @@ export async function upsertRoomPresence({ roomId, user }) {
       name: user.displayName || user.email || "Anonymous",
       avatar: user.photoURL || "",
       joinedAt: now,
-      lastSeenAt: now
+      lastSeenAt: now,
+      leftAt: 0
     },
     { merge: true }
   );
@@ -281,7 +283,16 @@ export async function removeRoomPresence(roomId, uid) {
     return;
   }
 
-  await deleteDoc(doc(db, "rooms", roomId, "presence", uid));
+  const presenceRef = doc(db, "rooms", roomId, "presence", uid);
+  await setDoc(
+    presenceRef,
+    {
+      leftAt: Date.now(),
+      lastSeenAt: 0
+    },
+    { merge: true }
+  );
+  await deleteDoc(presenceRef);
 }
 
 export async function loadWorkspace(uid) {
