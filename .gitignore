@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vercel/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+Sun
