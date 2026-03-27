@@ -22,7 +22,6 @@ export function mountApp(root) {
     landingThemeButtonLabel: getById(root, "landingThemeButtonLabel"),
     landingProfileButton: getById(root, "landingProfileButton"),
     landingUserAvatar: getById(root, "landingUserAvatar"),
-    landingHeroAvatar: getById(root, "landingHeroAvatar"),
     landingUserName: getById(root, "landingUserName"),
     landingHeroTitle: getById(root, "landingHeroTitle"),
     navAppButton: getById(root, "navAppButton"),

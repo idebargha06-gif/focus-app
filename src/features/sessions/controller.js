@@ -285,23 +285,31 @@ export function createSessionsController({
       return;
     }
 
+    const appUrl = window.location.origin;
     const text = [
       "FocusFlow",
       `Goal: ${store.getState().session.focusGoal || "Deep work"}`,
       `Time: ${Math.floor(result.timeSpent / 60)}m ${result.timeSpent % 60}s`,
       `Distractions: ${result.distractions}`,
-      `Score: ${result.score} pts`
+      `Score: ${result.score} pts`,
+      "",
+      "Join me on FocusFlow and start your next clean focus session:",
+      appUrl
     ].join("\n");
 
     try {
       if (navigator.share) {
-        await navigator.share({ title: "FocusFlow session", text });
+        await navigator.share({
+          title: "FocusFlow session",
+          text,
+          url: appUrl
+        });
       } else {
         await navigator.clipboard.writeText(text);
         feedback.notify({
           type: "success",
           title: "Summary copied",
-          message: "The session summary was copied to your clipboard."
+          message: "The session summary and app invite were copied to your clipboard."
         });
       }
     } catch (error) {

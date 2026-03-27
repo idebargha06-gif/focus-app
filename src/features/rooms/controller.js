@@ -251,11 +251,70 @@ export function createRoomsController({ store, repository, feedback, leaderboard
   }
 
   async function createRoom() {
-    await joinRoom(createRoomId(), { announce: false });
+    const rawRoomName = store.getState().room.draftRoomId.trim();
+    const typedRoomId = sanitizeRoomId(rawRoomName);
+    const roomId = typedRoomId || createRoomId();
+
+    if (rawRoomName && (!typedRoomId || !isValidRoomCode(typedRoomId))) {
+      feedback.notify({
+        type: "warning",
+        title: "Invalid room name",
+        message: "Use only letters, numbers, and hyphens for room names."
+      });
+      return;
+    }
+
+    await joinRoom(roomId, { announce: false });
     feedback.notify({
       type: "success",
       title: "Room created",
-      message: "A fresh room has been created and linked to this workspace."
+      message: typedRoomId
+        ? `Room ${roomId} is ready to use.`
+        : "A fresh room has been created and linked to this workspace."
+    });
+  }
+
+  async function leaveRoom() {
+    const state = store.getState();
+    const roomId = state.room.currentRoomId;
+    if (!roomId) {
+      feedback.notify({
+        type: "warning",
+        title: "No active room",
+        message: "Join a room before trying to leave it."
+      });
+      return;
+    }
+
+    await stopPresence();
+    writeRoomIdToUrl("");
+
+    store.setState((nextState) => ({
+      ...nextState,
+      room: {
+        ...nextState.room,
+        mode: "solo",
+        currentRoomId: "",
+        participants: [],
+        activeCount: 0,
+        ownerUid: "",
+        ownerName: "",
+        sessionControl: null,
+        syncRevision: 0
+      },
+      ui: {
+        ...nextState.ui,
+        roomBoard: "global"
+      }
+    }));
+
+    leaderboards.startRoom("");
+
+    const leaverName = state.auth.user?.displayName || state.auth.user?.email || "A participant";
+    feedback.notify({
+      type: "success",
+      title: "Room updated",
+      message: `${leaverName} has left the room.`
     });
   }
 
@@ -428,6 +487,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     joinRoom,
     joinRoomByCode,
     createRoom,
+    leaveRoom,
     copyInvite,
     copyRoomCode,
     hydrateFromUrl,

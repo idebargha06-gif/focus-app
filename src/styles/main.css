@@ -2336,3 +2336,134 @@ body[data-theme="dark"] .workspace-bar {
 .profile-button--minimal .avatar * {
   pointer-events: none;
 }
+
+/* Room panel cleanup */
+.room-mode-row {
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+
+.room-panel {
+  margin-top: 8px;
+}
+
+.room-panel__action-row {
+  margin-top: 6px;
+}
+
+.room-panel__footer {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* Toast readability by theme */
+.toast {
+  background: var(--surface-strong);
+  border-color: var(--border-strong);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+.toast p {
+  color: var(--text-muted);
+}
+
+.toast--success {
+  background: rgba(47, 110, 87, 0.16);
+  border-color: rgba(47, 110, 87, 0.38);
+}
+
+.toast--warning {
+  background: rgba(182, 134, 61, 0.16);
+  border-color: rgba(182, 134, 61, 0.36);
+}
+
+.toast--error {
+  background: rgba(184, 92, 70, 0.16);
+  border-color: rgba(184, 92, 70, 0.4);
+}
+
+body[data-theme="dark"] .toast {
+  background: rgba(16, 24, 31, 0.95);
+  border-color: rgba(186, 210, 196, 0.25);
+}
+
+body[data-theme="dark"] .toast--success {
+  background: rgba(38, 94, 72, 0.5);
+}
+
+body[data-theme="dark"] .toast--warning {
+  background: rgba(109, 87, 37, 0.45);
+}
+
+body[data-theme="dark"] .toast--error {
+  background: rgba(122, 56, 43, 0.5);
+}
+
+/* Layout stability + spacing refinements */
+.profile-panel {
+  min-width: min(320px, calc(100vw - 24px));
+}
+
+.member-identity {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.badge-block {
+  margin-bottom: 10px;
+}
+
+#historySection {
+  margin-top: 10px;
+}
+
+#calendarSection {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.calendar-summary-pills {
+  margin-top: 6px;
+  row-gap: 10px;
+}
+
+.calendar-summary-pill {
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: calc(100% - 20px);
+  }
+
+  .workspace-grid,
+  .session-layout,
+  .focus-column,
+  .side-column,
+  .focus-card,
+  .side-card,
+  .room-panel,
+  .room-join-inline {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .room-panel {
+    overflow: hidden;
+  }
+
+  .room-panel__action-row .button {
+    flex: 1 1 150px;
+  }
+
+  .profile-panel {
+    right: 6px;
+    width: min(94vw, 360px);
+    min-width: 0;
+  }
+}

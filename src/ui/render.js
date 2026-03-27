@@ -53,7 +53,6 @@ function renderLanding(state, refs) {
 
   const firstName = getFirstName(state.auth.user.displayName || state.auth.user.email || "Workspace");
   mountAvatar(refs.landingUserAvatar, state.auth.user, { sizeClass: "avatar--small" });
-  mountAvatar(refs.landingHeroAvatar, state.auth.user, { sizeClass: "avatar--small" });
   mountAvatar(refs.profilePanelAvatar, state.auth.user);
 
   // refs.landingUserName.textContent = firstName; // This element was removed from template

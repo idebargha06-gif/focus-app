@@ -22,7 +22,8 @@ export function createAppTemplate() {
               <button class="brand brand--button" data-action="go-landing" type="button">
                 <img src="/icon-512.png" alt="FocusFlow" class="brand__logo">
                 <span class="brand__text">FocusFlow</span>
-              </button>
+              </button>
+
             </div>
 
             <div class="topbar__right">
@@ -98,7 +99,6 @@ export function createAppTemplate() {
           <section id="landingLoggedIn" class="hero hero--member" hidden>
             <div class="hero__copy">
               <div class="member-identity">
-                <span id="landingHeroAvatar" class="avatar avatar--small"></span>
                 <div>
                   <p class="eyebrow">Welcome back</p>
                   <h1 id="landingHeroTitle" class="hero__title">Your next clean session is one click away.</h1>
@@ -253,7 +253,7 @@ export function createAppTemplate() {
                       <button class="button button--ghost button--small" data-action="set-session-mode" data-session-mode="sprint" type="button">Sprint</button>
                     </div>
                     <p id="sessionModeDescription" class="support-text"></p>
-                    <div class="button-row button-row--compact">
+                    <div class="button-row button-row--compact room-mode-row">
                       <button class="button button--ghost button--small" data-action="set-mode" data-mode="solo" type="button">Solo</button>
                       <button class="button button--ghost button--small" data-action="set-mode" data-mode="room" type="button">
                         <span>Room</span>
@@ -267,10 +267,8 @@ export function createAppTemplate() {
                           <span class="field__label">Room name</span>
                           <input id="roomCodeInput" class="field__input field__input--mono" type="text" placeholder="AB12CD" maxlength="50">
                         </label>
-                        <div class="button-row button-row--compact">
-                          <button class="button button--secondary button--small" data-action="join-room" type="button">Use room</button>
-                          <button class="button button--ghost button--small" data-action="copy-room-code" type="button">Copy code</button>
-                          <button class="button button--ghost button--small" data-action="create-room" type="button">Create room</button>
+                        <div class="button-row button-row--compact room-panel__action-row">
+                          <button class="button button--secondary button--small" data-action="create-room" type="button">Create room</button>
                           <button class="button button--ghost button--small" data-action="copy-invite" type="button">Copy invite</button>
                         </div>
                       </div>
@@ -303,6 +301,9 @@ export function createAppTemplate() {
                       </div>
 
                       <div id="roomPresenceList" class="participant-list"></div>
+                      <div class="button-row button-row--compact room-panel__footer">
+                        <button class="button button--secondary button--small" data-action="leave-room" type="button">Leave room</button>
+                      </div>
                     </div>
                   </div>
 
@@ -607,9 +608,11 @@ export function createAppTemplate() {
                 <button class="button button--primary button--small" data-action="close-distraction-modal" type="button">Back to session</button>
               </div>
             </div>
-          </div>
+          </div>
+
         </div>
-      </div>
+      </div>
+
 
       <div id="badgeModal" class="modal" hidden>
         <div class="modal__surface">
@@ -624,6 +627,7 @@ export function createAppTemplate() {
     </div>
   `;
 }
+
 
 
 

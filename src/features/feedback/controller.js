@@ -5,6 +5,10 @@ export function createFeedbackController({ store }) {
   let bannerTimer = null;
 
   function notify({ type = "info", title, message, duration = 3200 }) {
+    if (!store.getState().ui.notificationsEnabled) {
+      return "";
+    }
+
     const id = `toast-${toastId += 1}`;
     store.setState((state) => ({
       ...state,

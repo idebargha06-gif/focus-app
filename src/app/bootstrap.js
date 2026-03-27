@@ -197,6 +197,9 @@ export function bootstrapApp() {
         case "copy-invite":
           await rooms.copyInvite();
           break;
+        case "leave-room":
+          await rooms.leaveRoom();
+          break;
         case "copy-room-code":
           await rooms.copyRoomCode();
           break;
@@ -333,6 +336,7 @@ export function bootstrapApp() {
   leaderboards.refreshPublicStats().catch(() => {});
   auth.init();
 }
+
 
 
 
