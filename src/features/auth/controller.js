@@ -83,13 +83,15 @@ export function createAuthController({
       room: {
         ...state.room,
         currentRoomId: "",
+        currentRoomName: "",
         participants: [],
         activeCount: 0,
         ownerUid: "",
         ownerName: "",
         sessionControl: null,
         syncRevision: 0,
-        joinCode: ""
+        joinCode: "",
+        draftRoomName: ""
       },
       owner: {
         rooms: [],
@@ -186,3 +188,4 @@ export function createAuthController({
     destroy
   };
 }
+

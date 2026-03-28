@@ -102,7 +102,7 @@ describe("controller behavior", () => {
     const store = createStore({
       auth: { user: { uid: "user-1", displayName: "Ada" } },
       timer: { running: false },
-      room: { mode: "solo", currentRoomId: "", draftRoomId: "", joinCode: "", participants: [], activeCount: 0, ownerUid: "", ownerName: "", sessionControl: null, syncRevision: 0 },
+      room: { mode: "solo", currentRoomId: "", draftRoomName: "", joinCode: "", participants: [], activeCount: 0, ownerUid: "", ownerName: "", sessionControl: null, syncRevision: 0 },
       ui: { roomBoard: "global" }
     });
     const repository = {
@@ -111,6 +111,8 @@ describe("controller behavior", () => {
       upsertRoomPresence: vi.fn().mockResolvedValue(undefined),
       touchActiveRoom: vi.fn().mockResolvedValue(undefined),
       subscribeRoomPresence: vi.fn(() => () => {}),
+      subscribeOwnerRoomPresence: vi.fn(() => () => {}),
+      getRoom: vi.fn().mockResolvedValue(null),
       updateRoomPresence: vi.fn().mockResolvedValue(undefined),
       removeRoomPresence: vi.fn().mockResolvedValue(undefined)
     };
@@ -127,7 +129,7 @@ describe("controller behavior", () => {
     const store = createStore({
       auth: { user: { uid: "user-1", displayName: "Ada" } },
       timer: { selectedDuration: 1500, running: true },
-      room: { mode: "solo", currentRoomId: "", ownerUid: "", ownerName: "" },
+      room: { mode: "solo", currentRoomId: "", currentRoomName: "", ownerUid: "", ownerName: "" },
       session: { focusGoal: "Write tests", lastResult: null, saveState: "idle" },
       ui: { notificationsEnabled: false, quote: "", highlightedBadgeId: "" },
       stats: { badges: [] }

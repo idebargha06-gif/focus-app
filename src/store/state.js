@@ -88,8 +88,9 @@ export function createInitialState() {
     room: {
       mode: roomId ? "room" : "solo",
       currentRoomId: roomId,
-      draftRoomId: roomId,
+      draftRoomName: "",
       joinCode: "",
+      currentRoomName: "",
       participants: [],
       activeCount: 0,
       ownerUid: "",
@@ -129,3 +130,4 @@ export function createInitialState() {
     }
   };
 }
+

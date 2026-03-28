@@ -132,9 +132,10 @@ function renderTimer(state, refs) {
 
 function renderRoom(state, refs) {
   refs.roomPanel.hidden = state.room.mode !== "room";
-  refs.roomCodeInput.value = state.room.draftRoomId;
+  refs.roomCodeInput.value = state.room.draftRoomName;
   refs.roomJoinInput.value = state.room.joinCode;
-  refs.activeRoomLabel.textContent = state.room.currentRoomId || "None";
+  refs.activeRoomLabel.textContent = state.room.currentRoomName || state.room.currentRoomId || "None";
+  refs.activeRoomCodeLabel.textContent = state.room.currentRoomId || "--------";
   refs.roomPresenceCount.textContent = pluralize(state.room.activeCount, "person");
   refs.roomOwnerLabel.textContent = state.room.ownerName || "Waiting";
   refs.roomSyncLabel.textContent = state.room.sessionControl?.status
@@ -434,10 +435,4 @@ export function createRenderer(refs) {
     return state;
   };
 }
-
-
-
-
-
-
 

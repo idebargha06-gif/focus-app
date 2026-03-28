@@ -66,6 +66,7 @@ export function mountApp(root) {
     roomCodeInput: getById(root, "roomCodeInput"),
     roomJoinInput: getById(root, "roomJoinInput"),
     activeRoomLabel: getById(root, "activeRoomLabel"),
+    activeRoomCodeLabel: getById(root, "activeRoomCodeLabel"),
     roomPresenceCount: getById(root, "roomPresenceCount"),
     roomOwnerLabel: getById(root, "roomOwnerLabel"),
     roomSyncLabel: getById(root, "roomSyncLabel"),
@@ -141,6 +142,4 @@ export function mountApp(root) {
     boardButtons: [...root.querySelectorAll("[data-board]")]
   };
 }
-
-
 

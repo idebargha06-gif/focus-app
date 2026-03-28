@@ -2467,3 +2467,53 @@ body[data-theme="dark"] .toast--error {
     min-width: 0;
   }
 }
+
+.room-panel__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
+}
+
+.room-panel__meta-item {
+  min-width: 0;
+}
+
+.room-panel__meta-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.room-code-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.room-code-inline__value {
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .room-panel__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .room-panel__action-row {
+    align-items: stretch;
+  }
+
+  .room-code-inline {
+    width: 100%;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 10px 12px;
+    background: var(--surface-strong);
+  }
+}

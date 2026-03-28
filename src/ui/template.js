@@ -265,11 +265,12 @@ export function createAppTemplate() {
                       <div class="room-panel__inputs">
                         <label class="field">
                           <span class="field__label">Room name</span>
-                          <input id="roomCodeInput" class="field__input field__input--mono" type="text" placeholder="AB12CD" maxlength="50">
+                          <input id="roomCodeInput" class="field__input" type="text" placeholder="Type a room name" maxlength="60">
                         </label>
                         <div class="button-row button-row--compact room-panel__action-row">
                           <button class="button button--secondary button--small" data-action="create-room" type="button">Create room</button>
                           <button class="button button--ghost button--small" data-action="copy-invite" type="button">Copy invite</button>
+                          <span class="room-code-inline">Code <strong id="activeRoomCodeLabel" class="room-code-inline__value">--------</strong></span>
                         </div>
                       </div>
 
@@ -277,7 +278,7 @@ export function createAppTemplate() {
                         <span>Or join with a code:</span>
                       </div>
                       <div class="room-join-inline">
-                        <input id="roomJoinInput" class="field__input field__input--mono" type="text" placeholder="Enter room code to join..." maxlength="50">
+                        <input id="roomJoinInput" class="field__input field__input--mono" type="text" placeholder="Enter 8-character code" maxlength="8">
                         <button class="button button--primary button--small" data-action="join-room-code" type="button">Join</button>
                       </div>
 
@@ -627,7 +628,4 @@ export function createAppTemplate() {
     </div>
   `;
 }
-
-
-
 

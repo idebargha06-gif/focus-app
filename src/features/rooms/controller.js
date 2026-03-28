@@ -1,11 +1,23 @@
-import { ROOM_HEARTBEAT_MS } from "../../utils/constants.js";
-import { clearRoomIdFromUrl, createRoomId, getRoomInviteUrl, getRoomIdFromUrl, isValidRoomCode, sanitizeRoomId, URL_ROOM_ID, writeRoomIdToUrl } from "../../utils/room.js";
+import { ROOM_HEARTBEAT_MS, ROOM_PRESENCE_TTL_MS } from "../../utils/constants.js";
+import {
+  clearRoomIdFromUrl,
+  createRoomId,
+  createRoomName,
+  getRoomInviteUrl,
+  getRoomIdFromUrl,
+  isValidRoomCode,
+  sanitizeRoomId,
+  sanitizeRoomName,
+  URL_ROOM_ID,
+  writeRoomIdToUrl
+} from "../../utils/room.js";
 
 export function createRoomsController({ store, repository, feedback, leaderboards }) {
   let presenceUnsubscribe = null;
   let roomUnsubscribe = null;
   let heartbeatId = null;
   let unloadBound = false;
+  let previousPresenceByUid = new Map();
   const handlers = {
     onRemoteSessionStart: null,
     onRemoteSessionStop: null
@@ -22,6 +34,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         ...state.room,
         ownerUid: roomData.ownerUid || state.room.ownerUid,
         ownerName: roomData.ownerName || state.room.ownerName,
+        currentRoomName: roomData.roomName || state.room.currentRoomName,
         sessionControl: roomData.sessionControl || null
       }
     }));
@@ -32,12 +45,18 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     roomUnsubscribe = null;
 
     if (!roomId) {
-      updateRoomMeta({ ownerUid: "", ownerName: "", sessionControl: null });
+      updateRoomMeta({ ownerUid: "", ownerName: "", roomName: "", sessionControl: null });
       return;
     }
 
-    const roomData = await repository.ensureRoom({ roomId, user: store.getState().auth.user });
-    updateRoomMeta(roomData);
+    const roomData = await repository.ensureRoom({
+      roomId,
+      user: store.getState().auth.user,
+      createIfMissing: false
+    });
+    if (roomData) {
+      updateRoomMeta(roomData);
+    }
 
     roomUnsubscribe = repository.subscribeRoom(roomId, async (nextRoom) => {
       const state = store.getState();
@@ -50,6 +69,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
           ...current.room,
           ownerUid: nextRoom.ownerUid || "",
           ownerName: nextRoom.ownerName || "",
+          currentRoomName: nextRoom.roomName || current.room.currentRoomName,
           sessionControl: nextRoom.sessionControl || null,
           syncRevision: Math.max(current.room.syncRevision || 0, nextRevision)
         }
@@ -75,23 +95,24 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     });
   }
 
-  function syncRoomDraft(roomId) {
-    const nextRoomId = sanitizeRoomId(roomId);
+  function syncRoomDraft(roomName) {
+    const nextRoomName = sanitizeRoomName(roomName);
     store.setState((state) => ({
       ...state,
       room: {
         ...state.room,
-        draftRoomId: nextRoomId
+        draftRoomName: nextRoomName
       }
     }));
   }
 
   function syncJoinCode(value) {
+    const nextCode = sanitizeRoomId(value);
     store.setState((state) => ({
       ...state,
       room: {
         ...state.room,
-        joinCode: value
+        joinCode: nextCode
       }
     }));
   }
@@ -106,6 +127,42 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     if (state.auth.user) {
       repository.touchActiveRoom({ roomId: state.room.currentRoomId, user: state.auth.user }).catch(() => {});
     }
+  }
+
+  function notifyOwnerOnDepartures(participants) {
+    const state = store.getState();
+    const currentUserId = state.auth.user?.uid || "";
+    if (!currentUserId || state.room.ownerUid !== currentUserId) {
+      previousPresenceByUid = new Map(participants.map((participant) => [participant.uid, participant]));
+      return;
+    }
+
+    const nextPresenceByUid = new Map(participants.map((participant) => [participant.uid, participant]));
+
+    previousPresenceByUid.forEach((previousParticipant, uid) => {
+      if (uid === currentUserId) {
+        return;
+      }
+
+      const nextParticipant = nextPresenceByUid.get(uid);
+      const justLeft = previousParticipant.active !== false
+        && !previousParticipant.leftAt
+        && (
+          !nextParticipant
+          || nextParticipant.active === false
+          || Boolean(nextParticipant.leftAt)
+        );
+
+      if (justLeft) {
+        feedback.notify({
+          type: "warning",
+          title: "Participant left",
+          message: `${previousParticipant.name} left room ${state.room.currentRoomId}.`
+        });
+      }
+    });
+
+    previousPresenceByUid = nextPresenceByUid;
   }
 
   async function startPresence() {
@@ -123,14 +180,21 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     }
 
     await subscribeRoomState(state.room.currentRoomId);
+    previousPresenceByUid = new Map();
     presenceUnsubscribe?.();
-    presenceUnsubscribe = repository.subscribeRoomPresence(state.room.currentRoomId, (participants) => {
+    presenceUnsubscribe = repository.subscribeOwnerRoomPresence(state.room.currentRoomId, (participants) => {
+      notifyOwnerOnDepartures(participants);
+      const now = Date.now();
+      const activeParticipants = participants
+        .filter((participant) => participant.active && !participant.leftAt && now - participant.lastSeenAt <= ROOM_PRESENCE_TTL_MS)
+        .sort((left, right) => left.name.localeCompare(right.name));
+
       store.setState((nextState) => ({
         ...nextState,
         room: {
           ...nextState.room,
-          participants,
-          activeCount: participants.filter((participant) => participant.active !== false).length
+          participants: activeParticipants,
+          activeCount: activeParticipants.length
         }
       }));
     });
@@ -174,6 +238,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     presenceUnsubscribe = null;
     roomUnsubscribe?.();
     roomUnsubscribe = null;
+    previousPresenceByUid = new Map();
 
     if (state.auth.user && state.room.currentRoomId) {
       await repository.removeRoomPresence(state.room.currentRoomId, state.auth.user.uid).catch(() => {});
@@ -187,6 +252,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         activeCount: 0,
         ownerUid: "",
         ownerName: "",
+        currentRoomName: "",
         sessionControl: null,
         syncRevision: 0
       }
@@ -199,7 +265,23 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       feedback.notify({
         type: "error",
         title: "Room code needed",
-        message: "Enter a valid room code before joining."
+        message: "Enter a valid 8-character room code before joining."
+      });
+      return;
+    }
+
+    const roomData = await repository.ensureRoom({
+      roomId: nextRoomId,
+      user: store.getState().auth.user,
+      roomName: options.roomName || "",
+      createIfMissing: options.createIfMissing !== false
+    });
+
+    if (!roomData) {
+      feedback.notify({
+        type: "warning",
+        title: "Room not found",
+        message: `No room found with code ${nextRoomId}.`
       });
       return;
     }
@@ -211,7 +293,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         ...state.room,
         mode: "room",
         currentRoomId: nextRoomId,
-        draftRoomId: nextRoomId,
+        currentRoomName: roomData.roomName || nextRoomId,
+        draftRoomName: options.keepDraft ? state.room.draftRoomName : "",
         joinCode: options.clearJoinCode ? "" : state.room.joinCode
       },
       ui: {
@@ -225,12 +308,12 @@ export function createRoomsController({ store, repository, feedback, leaderboard
 
     if (options.fromUrl) {
       clearRoomIdFromUrl();
-      feedback.setBanner(`Joined Room: ${nextRoomId}`, "success", 4000);
+      feedback.setBanner(`Joined Room: ${roomData.roomName || nextRoomId} (${nextRoomId})`, "success", 4000);
     } else if (options.announce !== false) {
       feedback.notify({
         type: "success",
         title: "Room joined",
-        message: `You are now in room ${nextRoomId}.`
+        message: `You are now in ${roomData.roomName || "this room"} (${nextRoomId}).`
       });
     }
   }
@@ -241,36 +324,53 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       feedback.notify({
         type: "warning",
         title: "Invalid code",
-        message: "Room codes can use letters, numbers, and hyphens only."
+        message: "Room codes use exactly 8 letters/numbers."
       });
       return;
     }
 
-    await joinRoom(normalized, { announce: false, clearJoinCode: true });
-    feedback.setBanner(`Joined Room: ${normalized}`, "success", 4000);
+    await joinRoom(normalized, { announce: false, clearJoinCode: true, createIfMissing: false });
+    if (store.getState().room.currentRoomId === normalized) {
+      feedback.setBanner(`Joined Room Code: ${normalized}`, "success", 4000);
+    }
   }
 
   async function createRoom() {
-    const rawRoomName = store.getState().room.draftRoomId.trim();
-    const typedRoomId = sanitizeRoomId(rawRoomName);
-    const roomId = typedRoomId || createRoomId();
+    const state = store.getState();
+    const rawRoomName = state.room.draftRoomName.trim();
+    const roomName = sanitizeRoomName(rawRoomName) || createRoomName();
 
-    if (rawRoomName && (!typedRoomId || !isValidRoomCode(typedRoomId))) {
+    let roomId = "";
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const candidate = createRoomId();
+      const existingRoom = await repository.getRoom(candidate);
+      if (!existingRoom) {
+        roomId = candidate;
+        break;
+      }
+    }
+
+    if (!roomId) {
       feedback.notify({
-        type: "warning",
-        title: "Invalid room name",
-        message: "Use only letters, numbers, and hyphens for room names."
+        type: "error",
+        title: "Room creation failed",
+        message: "Could not reserve a unique room code. Try again."
       });
       return;
     }
 
-    await joinRoom(roomId, { announce: false });
+    await joinRoom(roomId, {
+      announce: false,
+      roomName,
+      createIfMissing: true,
+      clearJoinCode: true,
+      keepDraft: false
+    });
+
     feedback.notify({
       type: "success",
       title: "Room created",
-      message: typedRoomId
-        ? `Room ${roomId} is ready to use.`
-        : "A fresh room has been created and linked to this workspace."
+      message: `${roomName} is ready. Share code ${roomId} to invite others.`
     });
   }
 
@@ -295,6 +395,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
         ...nextState.room,
         mode: "solo",
         currentRoomId: "",
+        currentRoomName: "",
         participants: [],
         activeCount: 0,
         ownerUid: "",
@@ -310,16 +411,15 @@ export function createRoomsController({ store, repository, feedback, leaderboard
 
     leaderboards.startRoom("");
 
-    const leaverName = state.auth.user?.displayName || state.auth.user?.email || "A participant";
     feedback.notify({
       type: "success",
       title: "Room updated",
-      message: `${leaverName} has left the room.`
+      message: "You left the room."
     });
   }
 
   async function copyInvite() {
-    const roomId = store.getState().room.currentRoomId || sanitizeRoomId(store.getState().room.draftRoomId);
+    const roomId = store.getState().room.currentRoomId;
     if (!roomId) {
       feedback.notify({
         type: "error",
@@ -338,9 +438,9 @@ export function createRoomsController({ store, repository, feedback, leaderboard
   }
 
   async function copyRoomCode() {
-    const roomId = store.getState().room.currentRoomId || sanitizeRoomId(store.getState().room.draftRoomId);
+    const roomId = store.getState().room.currentRoomId;
     if (!roomId) {
-      feedback.notify({ type: "warning", title: "No code available", message: "Type or join a room before copying the code." });
+      feedback.notify({ type: "warning", title: "No code available", message: "Create or join a room before copying the code." });
       return;
     }
 
@@ -362,7 +462,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       return;
     }
 
-    const draftRoomId = store.getState().room.draftRoomId;
+    const draftRoomName = store.getState().room.draftRoomName;
 
     if (mode === "solo") {
       await stopPresence();
@@ -373,7 +473,8 @@ export function createRoomsController({ store, repository, feedback, leaderboard
           ...state.room,
           mode: "solo",
           currentRoomId: "",
-          draftRoomId,
+          currentRoomName: "",
+          draftRoomName,
           participants: [],
           activeCount: 0,
           ownerUid: "",
@@ -395,7 +496,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       room: {
         ...state.room,
         mode: "room",
-        draftRoomId
+        draftRoomName
       },
       ui: {
         ...state.ui,
@@ -412,7 +513,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
   async function hydrateFromUrl() {
     const roomId = URL_ROOM_ID || getRoomIdFromUrl();
     if (roomId) {
-      await joinRoom(roomId, { announce: false, fromUrl: true });
+      await joinRoom(roomId, { announce: false, fromUrl: true, createIfMissing: false });
     }
   }
 
@@ -427,7 +528,7 @@ export function createRoomsController({ store, repository, feedback, leaderboard
       user: state.auth.user,
       control: {
         status: "running",
-        startedAt: Date.now(),
+        startedAt: timerState.startedAt || Date.now(),
         totalTime: timerState.totalTime,
         selectedDuration: timerState.selectedDuration,
         sessionMode: timerState.sessionMode,
@@ -498,3 +599,4 @@ export function createRoomsController({ store, repository, feedback, leaderboard
     publishTimerStop
   };
 }
+

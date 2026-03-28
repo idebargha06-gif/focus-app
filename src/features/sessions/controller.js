@@ -120,25 +120,29 @@ export function createSessionsController({
       timer.start();
     }
 
+    const liveTimer = store.getState().timer;
+    const startedAt = options.remoteControl?.startedAt || liveTimer.phaseStartedAt || Date.now();
+
+    if (state.room.mode === "room" && state.room.currentRoomId && !options.remoteControl) {
+      await rooms.publishTimerStart({
+        startedAt,
+        totalTime: liveTimer.totalTime,
+        selectedDuration: liveTimer.selectedDuration,
+        sessionMode: liveTimer.sessionMode,
+        pomodoroEnabled: liveTimer.pomodoroEnabled,
+        pomodoroPhase: liveTimer.pomodoroPhase,
+        pomodoroCycle: liveTimer.pomodoroCycle,
+        cumulativeFocusSeconds: liveTimer.cumulativeFocusSeconds,
+        focusGoal: store.getState().session.focusGoal
+      });
+    }
+
     resetSummaryState();
     pulseTimerRing();
     audio.handleSessionStart();
     feedback.setBanner("Session in progress. Stay with the work.", "neutral");
     await rooms.startPresence();
-    rooms.updatePresence({ focusing: true, sessionStarted: Date.now(), distractedAt: 0, awayDuration: 0, distractionCount: 0, leftAt: 0, active: true }).catch(() => {});
-
-    if (state.room.mode === "room" && state.room.currentRoomId && !options.remoteControl) {
-      await rooms.publishTimerStart({
-        totalTime: store.getState().timer.totalTime,
-        selectedDuration: store.getState().timer.selectedDuration,
-        sessionMode: store.getState().timer.sessionMode,
-        pomodoroEnabled: store.getState().timer.pomodoroEnabled,
-        pomodoroPhase: store.getState().timer.pomodoroPhase,
-        pomodoroCycle: store.getState().timer.pomodoroCycle,
-        cumulativeFocusSeconds: store.getState().timer.cumulativeFocusSeconds,
-        focusGoal: store.getState().session.focusGoal
-      });
-    }
+    rooms.updatePresence({ focusing: true, sessionStarted: startedAt, distractedAt: 0, awayDuration: 0, distractionCount: 0, leftAt: 0, active: true }).catch(() => {});
   }
 
   async function finalizeSession(completed = false, options = {}) {
@@ -336,3 +340,4 @@ export function createSessionsController({
     toggleStartStop
   };
 }
+

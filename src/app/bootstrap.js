@@ -275,11 +275,11 @@ export function bootstrapApp() {
     });
 
     refs.roomCodeInput.addEventListener("input", (event) => {
-      rooms.syncRoomDraft(event.target.value.toUpperCase());
+      rooms.syncRoomDraft(event.target.value);
     });
 
     refs.roomJoinInput.addEventListener("input", (event) => {
-      rooms.syncJoinCode(event.target.value);
+      rooms.syncJoinCode(event.target.value.toUpperCase());
     });
 
     refs.roomJoinInput.addEventListener("keydown", async (event) => {
@@ -336,7 +336,4 @@ export function bootstrapApp() {
   leaderboards.refreshPublicStats().catch(() => {});
   auth.init();
 }
-
-
-
 

@@ -208,15 +208,20 @@ export function subscribeOwnerRoomPresence(roomId, callback) {
   });
 }
 
-export async function ensureRoom({ roomId, user }) {
+export async function ensureRoom({ roomId, user, roomName = "", createIfMissing = true }) {
   const roomRef = doc(db, "rooms", roomId);
   const roomSnapshot = await getDoc(roomRef);
   const now = Date.now();
 
   if (!roomSnapshot.exists()) {
+    if (!createIfMissing) {
+      return null;
+    }
+
     const roomData = {
       ownerUid: user?.uid || "",
       ownerName: user?.displayName || user?.email || "Anonymous",
+      roomName: roomName || roomId,
       createdAt: now,
       updatedAt: now,
       sessionControl: {
@@ -230,20 +235,51 @@ export async function ensureRoom({ roomId, user }) {
   }
 
   const data = roomSnapshot.data();
+  const patch = {
+    updatedAt: now
+  };
+
   if (!data.ownerUid && user) {
-    await setDoc(roomRef, {
-      ownerUid: user.uid,
-      ownerName: user.displayName || user.email || "Anonymous",
-      updatedAt: now
-    }, { merge: true });
-    return {
-      ...data,
-      ownerUid: user.uid,
-      ownerName: user.displayName || user.email || "Anonymous"
-    };
+    patch.ownerUid = user.uid;
+    patch.ownerName = user.displayName || user.email || "Anonymous";
   }
 
-  return data;
+  if (roomName && roomName !== data.roomName) {
+    patch.roomName = roomName;
+  } else if (!data.roomName) {
+    patch.roomName = roomId;
+  }
+
+  if (Object.keys(patch).length > 1) {
+    await setDoc(roomRef, patch, { merge: true });
+  }
+
+  return {
+    ...data,
+    ...patch,
+    ownerUid: patch.ownerUid || data.ownerUid || "",
+    ownerName: patch.ownerName || data.ownerName || "",
+    roomName: patch.roomName || data.roomName || roomId
+  };
+}
+
+export async function getRoom(roomId) {
+  if (!roomId) {
+    return null;
+  }
+
+  const snapshot = await getDoc(doc(db, "rooms", roomId));
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  const data = snapshot.data();
+  return {
+    ownerUid: data.ownerUid || "",
+    ownerName: data.ownerName || "",
+    roomName: data.roomName || roomId,
+    sessionControl: data.sessionControl || null
+  };
 }
 
 export function subscribeRoom(roomId, callback) {
@@ -252,6 +288,7 @@ export function subscribeRoom(roomId, callback) {
     callback({
       ownerUid: data.ownerUid || "",
       ownerName: data.ownerName || "",
+      roomName: data.roomName || roomId,
       sessionControl: data.sessionControl || null
     });
   });
@@ -274,6 +311,7 @@ export async function upsertRoomSessionControl({ roomId, user, control }) {
   await setDoc(roomRef, {
     ownerUid: roomData.ownerUid || user?.uid || "",
     ownerName: roomData.ownerName || user?.displayName || user?.email || "Anonymous",
+    roomName: roomData.roomName || roomId,
     updatedAt: now,
     sessionControl
   }, { merge: true });
@@ -286,11 +324,15 @@ export async function touchActiveRoom({ roomId, user }) {
     return;
   }
 
+  const roomSnapshot = await getDoc(doc(db, "rooms", roomId));
+  const roomData = roomSnapshot.exists() ? roomSnapshot.data() : {};
+
   await setDoc(doc(db, "activeRooms", roomId), {
-    name: roomId,
+    name: roomData.roomName || roomId,
+    code: roomId,
     lastActive: Date.now(),
     createdBy: user.uid,
-    ownerName: user.displayName || user.email || "Anonymous"
+    ownerName: roomData.ownerName || user.displayName || user.email || "Anonymous"
   }, { merge: true });
 }
 
@@ -300,6 +342,7 @@ export function subscribeActiveRooms(callback) {
     callback(snapshot.docs.map((entry) => ({
       id: entry.id,
       name: entry.data().name || entry.id,
+      code: entry.data().code || entry.id,
       lastActive: entry.data().lastActive || 0,
       createdBy: entry.data().createdBy || ""
     })));
@@ -478,3 +521,4 @@ export async function saveSession({ user, sessionResult, roomId }) {
   await Promise.all(writes);
   return loadWorkspace(user.uid);
 }
+

@@ -102,6 +102,7 @@ function createRefs() {
     roomCodeInput: makeEl(),
     roomJoinInput: makeEl(),
     activeRoomLabel: makeEl(),
+    activeRoomCodeLabel: makeEl(),
     roomPresenceCount: makeEl(),
     roomOwnerLabel: makeEl(),
     roomSyncLabel: makeEl(),
@@ -231,7 +232,8 @@ function createState(overrides = {}) {
     room: {
       mode: "solo",
       currentRoomId: "",
-      draftRoomId: "",
+      currentRoomName: "",
+      draftRoomName: "",
       joinCode: "",
       activeCount: 0,
       ownerUid: "",
@@ -330,10 +332,4 @@ describe("renderer behavior", () => {
     expect(refs.roomLeaderboard.hidden).toBe(false);
   });
 });
-
-
-
-
-
-
 
